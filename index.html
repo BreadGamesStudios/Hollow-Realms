@@ -1,0 +1,2939 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hollow Realms - Soulslike</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Georgia', serif; }
+canvas { display: block; }
+
+#gameContainer {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+#gameCanvas {
+    width: 100%;
+    height: 100%;
+}
+
+#ui-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+}
+
+/* HUD */
+#hud {
+    position: absolute;
+    top: 20px; left: 20px;
+    pointer-events: none;
+}
+
+.bar-container {
+    width: 300px;
+    height: 20px;
+    background: #1a1a1a;
+    border: 2px solid #333;
+    margin-bottom: 5px;
+    position: relative;
+}
+
+.bar-fill {
+    height: 100%;
+    transition: width 0.3s;
+}
+
+#hp-bar .bar-fill { background: linear-gradient(to bottom, #c0392b, #8b1a1a); }
+#stamina-bar .bar-fill { background: linear-gradient(to bottom, #27ae60, #1a6b3c); }
+#fp-bar .bar-fill { background: linear-gradient(to bottom, #2980b9, #1a4f7a); }
+
+.bar-text {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 11px;
+    text-shadow: 1px 1px 2px #000;
+}
+
+#souls-display {
+    color: #f1c40f;
+    font-size: 18px;
+    margin-top: 10px;
+    text-shadow: 0 0 10px rgba(241,196,15,0.5);
+}
+
+#level-display {
+    color: #bbb;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* Boss HP */
+#boss-hud {
+    position: absolute;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    display: none;
+    pointer-events: none;
+}
+
+#boss-name {
+    color: #c0392b;
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 5px;
+    text-shadow: 0 0 10px rgba(192,57,43,0.5);
+    letter-spacing: 3px;
+}
+
+#boss-hp-bar {
+    width: 100%;
+    height: 25px;
+    background: #1a1a1a;
+    border: 2px solid #c0392b;
+}
+
+#boss-hp-fill {
+    height: 100%;
+    background: linear-gradient(to bottom, #e74c3c, #8b1a1a);
+    transition: width 0.5s;
+}
+
+/* Interaction prompt */
+#interact-prompt {
+    position: absolute;
+    bottom: 200px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #f1c40f;
+    font-size: 16px;
+    display: none;
+    text-shadow: 0 0 10px rgba(241,196,15,0.3);
+    pointer-events: none;
+}
+
+/* Death Screen */
+#death-screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    pointer-events: auto;
+    z-index: 100;
+}
+
+#death-screen.active {
+    display: flex;
+    animation: deathFade 2s forwards;
+}
+
+@keyframes deathFade {
+    0% { background: rgba(100,0,0,0); }
+    50% { background: rgba(100,0,0,0.5); }
+    100% { background: rgba(0,0,0,0.9); }
+}
+
+#death-text {
+    color: #8b0000;
+    font-size: 60px;
+    letter-spacing: 10px;
+    opacity: 0;
+    animation: deathTextAppear 2s 1s forwards;
+    text-transform: uppercase;
+}
+
+@keyframes deathTextAppear {
+    0% { opacity: 0; transform: scale(0.5); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+#respawn-text {
+    color: #666;
+    font-size: 16px;
+    margin-top: 30px;
+    opacity: 0;
+    animation: deathTextAppear 1s 3s forwards;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+/* Bonfire Menu */
+#bonfire-menu {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(10,5,0,0.95);
+    border: 2px solid #8b4513;
+    padding: 40px;
+    display: none;
+    pointer-events: auto;
+    z-index: 50;
+    min-width: 350px;
+}
+
+#bonfire-menu h2 {
+    color: #f39c12;
+    text-align: center;
+    margin-bottom: 25px;
+    letter-spacing: 3px;
+    font-size: 24px;
+}
+
+.bonfire-option {
+    color: #bbb;
+    padding: 12px 20px;
+    margin: 8px 0;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.3s;
+    font-size: 16px;
+    font-family: 'Georgia', serif;
+    background: none;
+    width: 100%;
+    text-align: left;
+    display: block;
+}
+
+.bonfire-option:hover {
+    color: #f39c12;
+    border-color: #8b4513;
+    background: rgba(139,69,19,0.2);
+}
+
+/* Level Up Menu */
+#levelup-menu {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(10,5,0,0.95);
+    border: 2px solid #f39c12;
+    padding: 30px;
+    display: none;
+    pointer-events: auto;
+    z-index: 55;
+    min-width: 400px;
+}
+
+#levelup-menu h2 {
+    color: #f39c12;
+    text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 3px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    color: #bbb;
+    font-size: 14px;
+}
+
+.stat-row button {
+    background: none;
+    border: 1px solid #666;
+    color: #f39c12;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: 'Georgia', serif;
+}
+
+.stat-row button:hover {
+    background: rgba(243,156,18,0.2);
+}
+
+#levelup-cost {
+    text-align: center;
+    color: #f1c40f;
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+#confirm-levelup, #cancel-levelup {
+    background: none;
+    border: 1px solid #8b4513;
+    color: #bbb;
+    padding: 10px 30px;
+    margin: 15px 10px 0;
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+    font-size: 14px;
+}
+
+#confirm-levelup:hover, #cancel-levelup:hover {
+    color: #f39c12;
+    background: rgba(139,69,19,0.2);
+}
+
+/* Minimap */
+#minimap {
+    position: absolute;
+    top: 20px; right: 20px;
+    width: 180px; height: 180px;
+    border: 2px solid #444;
+    background: rgba(0,0,0,0.7);
+    pointer-events: none;
+}
+
+#minimap-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+/* Controls info */
+#controls-info {
+    position: absolute;
+    bottom: 20px; right: 20px;
+    color: #555;
+    font-size: 11px;
+    pointer-events: none;
+    text-align: right;
+    line-height: 1.8;
+}
+
+/* Item pickup notification */
+#notification {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #f1c40f;
+    font-size: 18px;
+    opacity: 0;
+    pointer-events: none;
+    text-shadow: 0 0 10px rgba(241,196,15,0.5);
+    transition: opacity 0.5s;
+    text-align: center;
+}
+
+/* Lock-on indicator */
+#lockon-indicator {
+    position: absolute;
+    width: 40px; height: 40px;
+    border: 2px solid #f39c12;
+    border-radius: 50%;
+    display: none;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Flask display */
+#flask-display {
+    position: absolute;
+    bottom: 20px; left: 20px;
+    pointer-events: none;
+}
+
+.flask-icon {
+    display: inline-block;
+    width: 35px; height: 50px;
+    margin: 0 3px;
+    border: 1px solid #555;
+    text-align: center;
+    line-height: 50px;
+    font-size: 20px;
+    position: relative;
+}
+
+.flask-count {
+    color: #fff;
+    font-size: 12px;
+    position: absolute;
+    bottom: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Weapon display */
+#weapon-display {
+    position: absolute;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    color: #aaa;
+    font-size: 14px;
+    pointer-events: none;
+    text-align: center;
+}
+
+/* Damage numbers */
+.damage-number {
+    position: absolute;
+    color: #ff4444;
+    font-size: 20px;
+    font-weight: bold;
+    pointer-events: none;
+    text-shadow: 2px 2px 4px #000;
+    animation: damageFloat 1s forwards;
+}
+
+@keyframes damageFloat {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-50px); }
+}
+
+/* Start screen */
+#start-screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    pointer-events: auto;
+}
+
+#start-screen h1 {
+    color: #8b0000;
+    font-size: 64px;
+    letter-spacing: 8px;
+    text-shadow: 0 0 30px rgba(139,0,0,0.5);
+    margin-bottom: 10px;
+}
+
+#start-screen h3 {
+    color: #555;
+    font-size: 16px;
+    letter-spacing: 5px;
+    margin-bottom: 60px;
+    font-weight: normal;
+}
+
+#start-btn {
+    background: none;
+    border: 2px solid #8b0000;
+    color: #8b0000;
+    padding: 15px 60px;
+    font-size: 20px;
+    font-family: 'Georgia', serif;
+    cursor: pointer;
+    letter-spacing: 5px;
+    transition: all 0.3s;
+}
+
+#start-btn:hover {
+    background: rgba(139,0,0,0.2);
+    color: #c0392b;
+    border-color: #c0392b;
+}
+
+/* Region name display */
+#region-name {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ddd;
+    font-size: 36px;
+    letter-spacing: 8px;
+    opacity: 0;
+    pointer-events: none;
+    text-shadow: 0 0 20px rgba(255,255,255,0.3);
+    transition: opacity 1.5s;
+}
+
+/* Character Menu */
+#character-menu {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(10,5,0,0.95);
+    border: 2px solid #555;
+    padding: 30px;
+    display: none;
+    pointer-events: auto;
+    z-index: 50;
+    min-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+#character-menu h2 {
+    color: #bbb;
+    text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 3px;
+}
+
+.equipment-section {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 15px;
+}
+
+.equipment-section h3 {
+    color: #f39c12;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.equipment-slot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 15px;
+    color: #999;
+    border-bottom: 1px solid #222;
+    cursor: pointer;
+    margin: 5px 0;
+}
+
+.equipment-slot:hover {
+    color: #f39c12;
+    background: rgba(243,156,18,0.1);
+}
+
+.equipment-slot .equipped-label {
+    color: #27ae60;
+    font-size: 12px;
+}
+
+.equipment-slot .stats {
+    color: #888;
+    font-size: 12px;
+}
+
+/* Inventory */
+#inventory {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(10,5,0,0.95);
+    border: 2px solid #555;
+    padding: 30px;
+    display: none;
+    pointer-events: auto;
+    z-index: 50;
+    min-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+#inventory h2 {
+    color: #bbb;
+    text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 3px;
+}
+
+#inventory-souls {
+    color: #f1c40f;
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+.inv-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    color: #999;
+    border-bottom: 1px solid #222;
+    margin: 5px 0;
+}
+
+.inv-item:hover {
+    background: rgba(243,156,18,0.05);
+}
+
+.inv-item .item-info {
+    flex: 1;
+}
+
+.inv-item .item-name {
+    color: #ccc;
+    font-size: 14px;
+}
+
+.inv-item .item-stats {
+    color: #888;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.inv-item .equipped {
+    color: #27ae60;
+    font-size: 11px;
+    margin-left: 10px;
+}
+
+.inv-item .item-value {
+    color: #f1c40f;
+    font-size: 12px;
+    margin-right: 10px;
+}
+
+.sell-btn {
+    background: none;
+    border: 1px solid #c0392b;
+    color: #c0392b;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.sell-btn:hover {
+    background: rgba(192,57,43,0.2);
+    color: #e74c3c;
+}
+
+.sell-btn:disabled {
+    border-color: #444;
+    color: #444;
+    cursor: not-allowed;
+}
+
+.sell-btn:disabled:hover {
+    background: none;
+}
+</style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-overlay">
+        <!-- HUD -->
+        <div id="hud">
+            <div class="bar-container" id="hp-bar">
+                <div class="bar-fill" style="width:100%"></div>
+                <div class="bar-text"><span id="hp-text">100/100</span></div>
+            </div>
+            <div class="bar-container" id="stamina-bar">
+                <div class="bar-fill" style="width:100%"></div>
+                <div class="bar-text"><span id="stamina-text">100/100</span></div>
+            </div>
+            <div class="bar-container" id="fp-bar">
+                <div class="bar-fill" style="width:100%"></div>
+                <div class="bar-text"><span id="fp-text">50/50</span></div>
+            </div>
+            <div id="souls-display">⚔ Almas: 0</div>
+            <div id="level-display">Nível: 1</div>
+        </div>
+
+        <!-- Boss HUD -->
+        <div id="boss-hud">
+            <div id="boss-name"></div>
+            <div id="boss-hp-bar">
+                <div id="boss-hp-fill" style="width:100%"></div>
+            </div>
+        </div>
+
+        <!-- Minimap -->
+        <div id="minimap">
+            <canvas id="minimap-canvas" width="180" height="180"></canvas>
+        </div>
+
+        <!-- Interaction Prompt -->
+        <div id="interact-prompt">Pressione [E] para interagir</div>
+
+        <!-- Notification -->
+        <div id="notification"></div>
+
+        <!-- Region Name -->
+        <div id="region-name"></div>
+
+        <!-- Flask Display -->
+        <div id="flask-display">
+            <div class="flask-icon" style="color:#c0392b;">🧪
+                <span class="flask-count" id="estus-count">5</span>
+            </div>
+            <div class="flask-icon" style="color:#2980b9;">🧪
+                <span class="flask-count" id="mana-count">3</span>
+            </div>
+        </div>
+
+        <!-- Weapon Display -->
+        <div id="weapon-display">⚔ Espada Longa</div>
+
+        <!-- Controls -->
+        <div id="controls-info">
+            WASD - Mover<br>
+            SHIFT - Correr/Rolar<br>
+            CLICK - Atacar<br>
+            RIGHT CLICK - Ataque Forte<br>
+            Q - Usar Frasco HP<br>
+            R - Usar Frasco FP<br>
+            F - Habilidade<br>
+            E - Interagir<br>
+            C - Personagem<br>
+            TAB - Inventário<br>
+            SPACE - Rolar<br>
+            T - Lock-on
+        </div>
+
+        <!-- Lock-on indicator -->
+        <div id="lockon-indicator"></div>
+    </div>
+
+    <!-- Death Screen -->
+    <div id="death-screen">
+        <div id="death-text">VOCÊ MORREU</div>
+        <div id="respawn-text" onclick="game.respawn()">Pressione para continuar</div>
+    </div>
+
+    <!-- Bonfire Menu -->
+    <div id="bonfire-menu">
+        <h2>🔥 Fogueira</h2>
+        <button class="bonfire-option" onclick="game.bonfireRest()">Descansar</button>
+        <button class="bonfire-option" onclick="game.openLevelUp()">Subir de Nível</button>
+        <button class="bonfire-option" onclick="game.bonfireTravel()">Viajar</button>
+        <button class="bonfire-option" onclick="game.closeBonfire()">Sair</button>
+    </div>
+
+    <!-- Level Up Menu -->
+    <div id="levelup-menu">
+        <h2>⚔ Subir de Nível</h2>
+        <div class="stat-row">
+            <span>Vigor (HP): <span id="stat-vigor">10</span></span>
+            <button onclick="game.addStat('vigor')">+</button>
+        </div>
+        <div class="stat-row">
+            <span>Resistência (Stamina): <span id="stat-endurance">10</span></span>
+            <button onclick="game.addStat('endurance')">+</button>
+        </div>
+        <div class="stat-row">
+            <span>Mente (FP): <span id="stat-mind">10</span></span>
+            <button onclick="game.addStat('mind')">+</button>
+        </div>
+        <div class="stat-row">
+            <span>Força: <span id="stat-strength">10</span></span>
+            <button onclick="game.addStat('strength')">+</button>
+        </div>
+        <div class="stat-row">
+            <span>Destreza: <span id="stat-dexterity">10</span></span>
+            <button onclick="game.addStat('dexterity')">+</button>
+        </div>
+        <div id="levelup-cost">Custo: <span id="cost-value">100</span> almas</div>
+        <div style="text-align:center;">
+            <button id="confirm-levelup" onclick="game.confirmLevelUp()">Confirmar</button>
+            <button id="cancel-levelup" onclick="game.closeLevelUp()">Voltar</button>
+        </div>
+    </div>
+
+    <!-- Character Menu -->
+    <div id="character-menu">
+        <h2>⚔ Personagem</h2>
+        
+        <div class="equipment-section">
+            <h3>Arma</h3>
+            <div id="weapon-slots"></div>
+        </div>
+
+        <div class="equipment-section">
+            <h3>Armadura</h3>
+            <div id="armor-slots"></div>
+        </div>
+
+        <div class="equipment-section">
+            <h3>Arma Secundária</h3>
+            <div id="secondary-slots"></div>
+        </div>
+
+        <div style="text-align:center; margin-top:15px;">
+            <button class="bonfire-option" onclick="game.closeCharacterMenu()" style="display:inline;">Fechar [C]</button>
+        </div>
+    </div>
+
+    <!-- Inventory -->
+    <div id="inventory">
+        <h2>Inventário</h2>
+        <div id="inventory-souls">⚔ Almas: 0</div>
+        <div id="inv-list"></div>
+        <div style="text-align:center; margin-top:15px;">
+            <button class="bonfire-option" onclick="game.closeInventory()" style="display:inline;">Fechar [TAB]</button>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <h1>HOLLOW REALMS</h1>
+        <h3>A JORNADA DO VAZIO</h3>
+        <button id="start-btn" onclick="game.start()">INICIAR JORNADA</button>
+    </div>
+</div>
+
+<script>
+// =============================================
+// HOLLOW REALMS - Soulslike Open World Game
+// =============================================
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const minimapCanvas = document.getElementById('minimap-canvas');
+const minimapCtx = minimapCanvas.getContext('2d');
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// =============================================
+// UTILITY FUNCTIONS
+// =============================================
+function dist(a, b) {
+    return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+function lerp(a, b, t) {
+    return a + (b - a) * t;
+}
+
+function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+}
+
+function randomRange(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
+function angleBetween(a, b) {
+    return Math.atan2(b.y - a.y, b.x - a.x);
+}
+
+// =============================================
+// WORLD GENERATION
+// =============================================
+const WORLD_WIDTH = 6000;
+const WORLD_HEIGHT = 6000;
+const TILE_SIZE = 64;
+
+const REGIONS = [
+    { name: "Planícies do Crepúsculo", x: 0, y: 0, w: 2000, h: 2000, color: '#2d4a2e', groundColor: '#3a5a3b', treeChance: 0.03, enemyType: 'hollow' },
+    { name: "Floresta Sombria", x: 2000, y: 0, w: 2000, h: 2000, color: '#1a2e1a', groundColor: '#253825', treeChance: 0.08, enemyType: 'skeleton' },
+    { name: "Ruínas Antigas", x: 4000, y: 0, w: 2000, h: 2000, color: '#3a3a3a', groundColor: '#4a4a4a', treeChance: 0.01, enemyType: 'knight' },
+    { name: "Pântano da Perdição", x: 0, y: 2000, w: 2000, h: 2000, color: '#2a3a2a', groundColor: '#354535', treeChance: 0.04, enemyType: 'hollow' },
+    { name: "Catedral Abandonada", x: 2000, y: 2000, w: 2000, h: 2000, color: '#2e2e3e', groundColor: '#3a3a4a', treeChance: 0.02, enemyType: 'knight' },
+    { name: "Montanhas do Abismo", x: 4000, y: 2000, w: 2000, h: 2000, color: '#3e2e2e', groundColor: '#4a3a3a', treeChance: 0.02, enemyType: 'demon' },
+    { name: "Cemitério Eterno", x: 0, y: 4000, w: 2000, h: 2000, color: '#252530', groundColor: '#303040', treeChance: 0.03, enemyType: 'skeleton' },
+    { name: "Fortaleza do Dragão", x: 2000, y: 4000, w: 2000, h: 2000, color: '#3e2020', groundColor: '#4a2a2a', treeChance: 0.01, enemyType: 'demon' },
+    { name: "Trono do Vazio", x: 4000, y: 4000, w: 2000, h: 2000, color: '#1a1a2a', groundColor: '#252535', treeChance: 0.01, enemyType: 'boss' },
+];
+
+// Item sell values
+function getItemSellValue(item) {
+    if (item.type === 'weapon') {
+        return Math.floor(item.damage * 5);
+    } else if (item.type === 'armor') {
+        return Math.floor(item.defense * 8);
+    } else if (item.type === 'shield') {
+        return Math.floor(item.defense * 6);
+    } else if (item.type === 'ring') {
+        return Math.floor(item.value * 20);
+    } else if (item.type === 'upgrade') {
+        return 100;
+    }
+    return 50;
+}
+
+class WorldGenerator {
+    constructor() {
+        this.obstacles = [];
+        this.decorations = [];
+        this.items = [];
+        this.bonfires = [];
+        this.chests = [];
+        this.generateWorld();
+    }
+
+    generateWorld() {
+        for (let region of REGIONS) {
+            for (let x = region.x; x < region.x + region.w; x += TILE_SIZE) {
+                for (let y = region.y; y < region.y + region.h; y += TILE_SIZE) {
+                    if (Math.random() < region.treeChance) {
+                        this.obstacles.push({
+                            x: x + Math.random() * TILE_SIZE,
+                            y: y + Math.random() * TILE_SIZE,
+                            type: Math.random() > 0.3 ? 'tree' : 'rock',
+                            radius: 15 + Math.random() * 10,
+                            height: 30 + Math.random() * 40
+                        });
+                    }
+                    if (Math.random() < 0.01) {
+                        this.decorations.push({
+                            x: x + Math.random() * TILE_SIZE,
+                            y: y + Math.random() * TILE_SIZE,
+                            type: ['grass', 'flower', 'bone', 'rubble'][Math.floor(Math.random() * 4)]
+                        });
+                    }
+                }
+            }
+        }
+
+        this.bonfires = [
+            { x: 300, y: 300, name: "Fogueira Inicial", lit: true, region: 0 },
+            { x: 1800, y: 500, name: "Fogueira do Bosque", lit: false, region: 0 },
+            { x: 3000, y: 800, name: "Fogueira da Floresta", lit: false, region: 1 },
+            { x: 5000, y: 500, name: "Fogueira das Ruínas", lit: false, region: 2 },
+            { x: 500, y: 3000, name: "Fogueira do Pântano", lit: false, region: 3 },
+            { x: 3000, y: 3000, name: "Fogueira da Catedral", lit: false, region: 4 },
+            { x: 5000, y: 3000, name: "Fogueira da Montanha", lit: false, region: 5 },
+            { x: 500, y: 5000, name: "Fogueira do Cemitério", lit: false, region: 6 },
+            { x: 3000, y: 5000, name: "Fogueira da Fortaleza", lit: false, region: 7 },
+            { x: 5000, y: 5000, name: "Fogueira do Trono", lit: false, region: 8 },
+        ];
+
+        for (let bf of this.bonfires) {
+            this.obstacles = this.obstacles.filter(o => dist(o, bf) > 100);
+        }
+
+        const chestRewards = [
+            { type: 'souls', amount: 500 },
+            { type: 'weapon', name: "Espada Larga", damage: 45, weight: 6 },
+            { type: 'weapon', name: "Adaga Rápida", damage: 20, weight: 2 },
+            { type: 'weapon', name: "Machado de Guerra", damage: 60, weight: 8 },
+            { type: 'weapon', name: "Pistola Antiga", damage: 55, weight: 3, special: "infiniteAmmo" },
+            { type: 'weapon', name: "Arco Longo", damage: 50, weight: 4, special: "infiniteArrows" },
+            { type: 'weapon', name: "Katana Sangrenta", damage: 70, weight: 5 },
+            { type: 'armor', name: "Armadura de Couro", defense: 10, weight: 5 },
+            { type: 'armor', name: "Armadura de Ferro", defense: 25, weight: 15 },
+            { type: 'armor', name: "Armadura de Cavaleiro", defense: 40, weight: 25 },
+            { type: 'souls', amount: 1000 },
+            { type: 'souls', amount: 1500 },
+        ];
+
+        for (let i = 0; i < 20; i++) {
+            let x = 200 + Math.random() * (WORLD_WIDTH - 400);
+            let y = 200 + Math.random() * (WORLD_HEIGHT - 400);
+            
+            let nearBonfire = false;
+            for (let bf of this.bonfires) {
+                if (dist({ x, y }, bf) < 150) {
+                    nearBonfire = true;
+                    break;
+                }
+            }
+            if (nearBonfire) continue;
+
+            this.chests.push({
+                x, y,
+                opened: false,
+                reward: { ...chestRewards[Math.floor(Math.random() * chestRewards.length)] },
+                id: i
+            });
+        }
+
+        const itemDefs = [
+            { name: "Escudo de Ferro", type: "shield", defense: 30, weight: 5, desc: "Escudo resistente" },
+            { name: "Anel de Vigor", type: "ring", effect: "vigor", value: 5, desc: "+5 Vigor" },
+            { name: "Anel de Força", type: "ring", effect: "strength", value: 3, desc: "+3 Força" },
+            { name: "Fragmento de Titânio", type: "upgrade", desc: "Material de melhoria" },
+        ];
+
+        for (let i = 0; i < 30; i++) {
+            let item = { ...itemDefs[Math.floor(Math.random() * itemDefs.length)] };
+            item.x = 200 + Math.random() * (WORLD_WIDTH - 400);
+            item.y = 200 + Math.random() * (WORLD_HEIGHT - 400);
+            item.collected = false;
+            item.id = i;
+            this.items.push(item);
+        }
+    }
+
+    getRegion(x, y) {
+        for (let r of REGIONS) {
+            if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) {
+                return r;
+            }
+        }
+        return REGIONS[0];
+    }
+}
+
+// =============================================
+// PARTICLE SYSTEM
+// =============================================
+class Particle {
+    constructor(x, y, vx, vy, life, color, size) {
+        this.x = x; this.y = y;
+        this.vx = vx; this.vy = vy;
+        this.life = life; this.maxLife = life;
+        this.color = color; this.size = size;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life--;
+        this.vy += 0.05;
+    }
+    draw(ctx, camX, camY) {
+        let alpha = this.life / this.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x - camX - this.size/2, this.y - camY - this.size/2, this.size, this.size);
+        ctx.globalAlpha = 1;
+    }
+}
+
+let particles = [];
+
+function spawnParticles(x, y, count, color, speed, life, size) {
+    for (let i = 0; i < count; i++) {
+        let angle = Math.random() * Math.PI * 2;
+        let spd = Math.random() * speed;
+        particles.push(new Particle(
+            x, y,
+            Math.cos(angle) * spd,
+            Math.sin(angle) * spd,
+            life + Math.random() * life * 0.5,
+            color,
+            size || 3
+        ));
+    }
+}
+
+// =============================================
+// ENEMY DEFINITIONS
+// =============================================
+const ENEMY_TYPES = {
+    hollow: {
+        name: "Oco Errante",
+        hp: 80, maxHp: 80,
+        damage: 12,
+        defense: 3,
+        speed: 1.2,
+        aggroRange: 250,
+        attackRange: 45,
+        attackCooldown: 60,
+        souls: 100,
+        color: '#5a5a4a',
+        size: 16,
+        behavior: 'aggressive'
+    },
+    skeleton: {
+        name: "Esqueleto Guerreiro",
+        hp: 120, maxHp: 120,
+        damage: 18,
+        defense: 5,
+        speed: 1.5,
+        aggroRange: 300,
+        attackRange: 50,
+        attackCooldown: 50,
+        souls: 160,
+        color: '#d4c5a0',
+        size: 17,
+        behavior: 'patrol'
+    },
+    knight: {
+        name: "Cavaleiro Sombrio",
+        hp: 250, maxHp: 250,
+        damage: 30,
+        defense: 12,
+        speed: 1.0,
+        aggroRange: 350,
+        attackRange: 55,
+        attackCooldown: 70,
+        souls: 400,
+        color: '#3a3a4a',
+        size: 20,
+        behavior: 'guard'
+    },
+    demon: {
+        name: "Demônio Menor",
+        hp: 400, maxHp: 400,
+        damage: 40,
+        defense: 15,
+        speed: 0.8,
+        aggroRange: 400,
+        attackRange: 65,
+        attackCooldown: 80,
+        souls: 800,
+        color: '#8b2500',
+        size: 24,
+        behavior: 'aggressive'
+    }
+};
+
+const BOSS_TYPES = {
+    treesentinel: {
+        name: "SENTINELA DA ÁRVORE",
+        hp: 1500, maxHp: 1500,
+        damage: 50,
+        defense: 20,
+        speed: 1.5,
+        aggroRange: 500,
+        attackRange: 80,
+        attackCooldown: 60,
+        souls: 4000,
+        color: '#4a6a3a',
+        size: 40,
+        isBoss: true,
+        attacks: ['sweep', 'slam', 'charge']
+    },
+    abysswatcher: {
+        name: "VIGILANTE DO ABISMO",
+        hp: 2500, maxHp: 2500,
+        damage: 65,
+        defense: 15,
+        speed: 2.5,
+        aggroRange: 600,
+        attackRange: 70,
+        attackCooldown: 40,
+        souls: 10000,
+        color: '#2a2a5a',
+        size: 35,
+        isBoss: true,
+        attacks: ['combo', 'leap', 'spin']
+    },
+    dragonlord: {
+        name: "SENHOR DRAGÃO",
+        hp: 4000, maxHp: 4000,
+        damage: 80,
+        defense: 25,
+        speed: 1.0,
+        aggroRange: 700,
+        attackRange: 100,
+        attackCooldown: 50,
+        souls: 20000,
+        color: '#8b0000',
+        size: 50,
+        isBoss: true,
+        attacks: ['fire', 'tail', 'slam', 'fly']
+    }
+};
+
+// =============================================
+// ENEMY CLASS
+// =============================================
+class Enemy {
+    constructor(type, x, y, bossType) {
+        let def = bossType ? BOSS_TYPES[bossType] : ENEMY_TYPES[type];
+        Object.assign(this, JSON.parse(JSON.stringify(def)));
+        this.x = x;
+        this.y = y;
+        this.originX = x;
+        this.originY = y;
+        this.angle = 0;
+        this.state = 'idle';
+        this.attackTimer = 0;
+        this.hurtTimer = 0;
+        this.stateTimer = 0;
+        this.patrolAngle = Math.random() * Math.PI * 2;
+        this.dead = false;
+        this.deathTimer = 0;
+        this.type = type;
+        this.bossType = bossType;
+        this.currentAttack = null;
+        this.attackPhase = 0;
+        this.comboCount = 0;
+        this.chargeTarget = null;
+        this.invincible = false;
+        this.poise = 30;
+        this.maxPoise = 30;
+        this.poiseTimer = 0;
+
+        if (this.isBoss) {
+            this.poise = 100;
+            this.maxPoise = 100;
+            this.phase = 1;
+        }
+    }
+
+    update(player) {
+        if (this.dead) {
+            this.deathTimer++;
+            return;
+        }
+
+        let distance = dist(this, player);
+        
+        if (this.poiseTimer > 0) this.poiseTimer--;
+        if (this.poiseTimer <= 0 && this.poise < this.maxPoise) {
+            this.poise = Math.min(this.maxPoise, this.poise + 0.5);
+        }
+
+        if (this.hurtTimer > 0) {
+            this.hurtTimer--;
+            return;
+        }
+
+        if (this.attackTimer > 0) this.attackTimer--;
+
+        this.angle = angleBetween(this, player);
+
+        switch (this.state) {
+            case 'idle':
+                this.stateTimer++;
+                if (distance < this.aggroRange) {
+                    this.state = 'chase';
+                } else if (this.stateTimer > 120 && this.behavior === 'patrol') {
+                    this.state = 'patrol';
+                    this.stateTimer = 0;
+                    this.patrolAngle = Math.random() * Math.PI * 2;
+                }
+                break;
+
+            case 'patrol':
+                this.x += Math.cos(this.patrolAngle) * this.speed * 0.5;
+                this.y += Math.sin(this.patrolAngle) * this.speed * 0.5;
+                this.stateTimer++;
+                if (dist(this, { x: this.originX, y: this.originY }) > 200) {
+                    this.patrolAngle = angleBetween(this, { x: this.originX, y: this.originY });
+                }
+                if (this.stateTimer > 180) {
+                    this.state = 'idle';
+                    this.stateTimer = 0;
+                }
+                if (distance < this.aggroRange) {
+                    this.state = 'chase';
+                }
+                break;
+
+            case 'chase':
+                if (distance > this.aggroRange * 2 && !this.isBoss) {
+                    this.state = 'idle';
+                    break;
+                }
+                if (distance > this.attackRange) {
+                    this.x += Math.cos(this.angle) * this.speed;
+                    this.y += Math.sin(this.angle) * this.speed;
+                } else if (this.attackTimer <= 0) {
+                    this.state = 'attack';
+                    this.attackPhase = 0;
+                    this.stateTimer = 0;
+                    if (this.isBoss) {
+                        this.currentAttack = this.attacks[Math.floor(Math.random() * this.attacks.length)];
+                        if (this.hp < this.maxHp * 0.5 && this.phase === 1) {
+                            this.phase = 2;
+                            this.speed *= 1.3;
+                            this.damage *= 1.2;
+                            spawnParticles(this.x, this.y, 40, '#ff4444', 5, 40, 5);
+                        }
+                    }
+                } else {
+                    let strafeAngle = this.angle + Math.PI / 2;
+                    this.x += Math.cos(strafeAngle) * this.speed * 0.3;
+                    this.y += Math.sin(strafeAngle) * this.speed * 0.3;
+                }
+                break;
+
+            case 'attack':
+                this.stateTimer++;
+                this.performAttack(player);
+                break;
+        }
+
+        this.x = clamp(this.x, 20, WORLD_WIDTH - 20);
+        this.y = clamp(this.y, 20, WORLD_HEIGHT - 20);
+    }
+
+    performAttack(player) {
+        let windupTime = this.isBoss ? 30 : 20;
+        let hitFrame = windupTime;
+        let recoveryTime = this.isBoss ? 20 : 15;
+
+        if (this.isBoss && this.currentAttack === 'charge') {
+            windupTime = 40;
+            recoveryTime = 30;
+        }
+
+        if (this.stateTimer === hitFrame) {
+            let distance = dist(this, player);
+            let range = this.attackRange + (this.isBoss && this.currentAttack === 'sweep' ? 30 : 0);
+            
+            if (distance < range && !player.invincible) {
+                let dmg = this.damage;
+                if (this.isBoss) {
+                    switch (this.currentAttack) {
+                        case 'slam': dmg *= 1.5; break;
+                        case 'charge': dmg *= 1.3; break;
+                        case 'combo': dmg *= 0.7; break;
+                        case 'fire': dmg *= 1.4; break;
+                    }
+                }
+                player.takeDamage(Math.floor(dmg));
+            }
+
+            spawnParticles(
+                this.x + Math.cos(this.angle) * this.attackRange * 0.7,
+                this.y + Math.sin(this.angle) * this.attackRange * 0.7,
+                8, '#ff6600', 3, 15
+            );
+        }
+
+        if (this.isBoss && this.currentAttack === 'charge' && this.stateTimer > windupTime - 10 && this.stateTimer < hitFrame + 5) {
+            this.x += Math.cos(this.angle) * this.speed * 4;
+            this.y += Math.sin(this.angle) * this.speed * 4;
+        }
+
+        if (this.isBoss && this.currentAttack === 'combo') {
+            if (this.stateTimer === hitFrame + 15) {
+                let distance = dist(this, player);
+                if (distance < this.attackRange && !player.invincible) {
+                    player.takeDamage(Math.floor(this.damage * 0.8));
+                }
+                spawnParticles(
+                    this.x + Math.cos(this.angle) * this.attackRange * 0.7,
+                    this.y + Math.sin(this.angle) * this.attackRange * 0.7,
+                    8, '#ff6600', 3, 15
+                );
+            }
+        }
+
+        if (this.stateTimer > hitFrame + recoveryTime) {
+            this.state = 'chase';
+            this.attackTimer = this.attackCooldown;
+            this.stateTimer = 0;
+        }
+    }
+
+    takeDamage(amount) {
+        if (this.dead || this.invincible) return 0;
+        
+        let actualDmg = Math.max(1, amount - this.defense);
+        this.hp -= actualDmg;
+        this.hurtTimer = 10;
+        this.poise -= actualDmg * 0.5;
+        this.poiseTimer = 120;
+
+        if (this.poise <= 0) {
+            this.hurtTimer = 30;
+            this.poise = this.maxPoise;
+            this.state = 'chase';
+            spawnParticles(this.x, this.y, 15, '#ffaa00', 3, 20);
+        }
+
+        spawnParticles(this.x, this.y, 5, '#ff0000', 2, 15);
+
+        if (this.hp <= 0) {
+            this.hp = 0;
+            this.dead = true;
+            this.state = 'dead';
+            spawnParticles(this.x, this.y, 30, '#666', 4, 40, 4);
+            return actualDmg;
+        }
+
+        if (this.state === 'idle' || this.state === 'patrol') {
+            this.state = 'chase';
+        }
+
+        return actualDmg;
+    }
+
+    draw(ctx, camX, camY) {
+        if (this.deathTimer > 60) return;
+
+        let sx = this.x - camX;
+        let sy = this.y - camY;
+
+        if (sx < -100 || sx > canvas.width + 100 || sy < -100 || sy > canvas.height + 100) return;
+
+        let alpha = this.dead ? Math.max(0, 1 - this.deathTimer / 60) : 1;
+        ctx.globalAlpha = alpha;
+
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(sx, sy + this.size * 0.8, this.size * 0.8, this.size * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        let bodyColor = this.hurtTimer > 0 ? '#ff4444' : this.color;
+        ctx.fillStyle = bodyColor;
+        
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, this.size * 0.6, this.size, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(sx, sy - this.size * 0.9, this.size * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = this.isBoss ? '#ff0000' : '#ff4444';
+        let eyeOffX = Math.cos(this.angle) * 3;
+        let eyeOffY = Math.sin(this.angle) * 3;
+        ctx.beginPath();
+        ctx.arc(sx - 3 + eyeOffX, sy - this.size * 0.9 + eyeOffY, 2, 0, Math.PI * 2);
+        ctx.arc(sx + 3 + eyeOffX, sy - this.size * 0.9 + eyeOffY, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (this.state === 'attack') {
+            let progress = this.stateTimer / 30;
+            let weaponAngle = this.angle + Math.sin(progress * Math.PI) * 1.5 - 0.7;
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(
+                sx + Math.cos(weaponAngle) * this.size * 2,
+                sy + Math.sin(weaponAngle) * this.size * 2
+            );
+            ctx.stroke();
+        }
+
+        if (!this.dead && this.hp < this.maxHp) {
+            let barW = this.size * 2.5;
+            let barH = 4;
+            let barX = sx - barW / 2;
+            let barY = sy - this.size * 1.5;
+            
+            ctx.fillStyle = '#333';
+            ctx.fillRect(barX, barY, barW, barH);
+            ctx.fillStyle = '#c0392b';
+            ctx.fillRect(barX, barY, barW * (this.hp / this.maxHp), barH);
+        }
+
+        if (this.isBoss && !this.dead) {
+            ctx.strokeStyle = this.phase === 2 ? 'rgba(255,0,0,0.3)' : 'rgba(255,100,0,0.2)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(sx, sy, this.size * 1.5 + Math.sin(Date.now() * 0.005) * 5, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        ctx.globalAlpha = 1;
+    }
+}
+
+// =============================================
+// PLAYER CLASS
+// =============================================
+class Player {
+    constructor() {
+        this.x = 300;
+        this.y = 300;
+        this.angle = 0;
+        this.speed = 2.5;
+
+        this.level = 1;
+        this.stats = {
+            vigor: 10,
+            endurance: 10,
+            mind: 10,
+            strength: 10,
+            dexterity: 10
+        };
+
+        this.recalcStats();
+
+        this.hp = this.maxHp;
+        this.stamina = this.maxStamina;
+        this.fp = this.maxFp;
+
+        this.souls = 0;
+        this.droppedSouls = null;
+
+        this.state = 'idle';
+        this.stateTimer = 0;
+        this.invincible = false;
+        this.attackDir = 0;
+        this.isHeavyAttack = false;
+
+        this.weapon = { name: "Espada Longa", damage: 30, speed: 1, weight: 4, type: 'weapon' };
+        this.armor = null;
+        this.secondary = null;
+        this.shield = null;
+        this.rings = [];
+
+        this.estusFlask = 5;
+        this.maxEstus = 5;
+        this.manaFlask = 3;
+        this.maxMana = 3;
+
+        this.inventory = [
+            { name: "Espada Longa", type: "weapon", damage: 30, weight: 4, equipped: true }
+        ];
+
+        this.lastBonfireX = 300;
+        this.lastBonfireY = 300;
+
+        this.lockedTarget = null;
+
+        this.walkCycle = 0;
+        this.rollAngle = 0;
+    }
+
+    recalcStats() {
+        this.maxHp = 100 + (this.stats.vigor - 10) * 25;
+        this.maxStamina = 80 + (this.stats.endurance - 10) * 10;
+        this.maxFp = 40 + (this.stats.mind - 10) * 8;
+    }
+
+    get attackDamage() {
+        let base = this.weapon.damage;
+        let strBonus = (this.stats.strength - 10) * 2;
+        let dexBonus = (this.stats.dexterity - 10) * 1.5;
+        return Math.floor(base + strBonus + dexBonus);
+    }
+
+    get totalDefense() {
+        let def = 0;
+        if (this.armor) def += this.armor.defense;
+        if (this.shield) def += this.shield.defense;
+        return def;
+    }
+
+    isItemEquipped(item) {
+        if (item.equipped) return true;
+        if (this.armor && this.armor.name === item.name && item.type === 'armor') return true;
+        if (this.secondary && this.secondary.name === item.name) return true;
+        if (this.shield && this.shield.name === item.name) return true;
+        return false;
+    }
+
+    update(keys, enemies, world) {
+        if (this.state === 'dead') return;
+
+        this.stateTimer++;
+
+        if (this.state === 'idle' || this.state === 'moving') {
+            this.stamina = Math.min(this.maxStamina, this.stamina + 0.8);
+        }
+
+        this.fp = Math.min(this.maxFp, this.fp + 0.02);
+
+        switch (this.state) {
+            case 'idle':
+            case 'moving':
+                this.handleMovement(keys, world);
+                break;
+            case 'attack':
+                this.handleAttack(enemies);
+                break;
+            case 'roll':
+                this.handleRoll(world);
+                break;
+            case 'heal':
+                this.handleHeal();
+                break;
+            case 'hurt':
+                if (this.stateTimer > 15) {
+                    this.state = 'idle';
+                    this.invincible = false;
+                }
+                break;
+        }
+
+        this.x = clamp(this.x, 20, WORLD_WIDTH - 20);
+        this.y = clamp(this.y, 20, WORLD_HEIGHT - 20);
+    }
+
+    handleMovement(keys, world) {
+        let dx = 0, dy = 0;
+        if (keys['w'] || keys['arrowup']) dy -= 1;
+        if (keys['s'] || keys['arrowdown']) dy += 1;
+        if (keys['a'] || keys['arrowleft']) dx -= 1;
+        if (keys['d'] || keys['arrowright']) dx += 1;
+
+        if (dx !== 0 || dy !== 0) {
+            let moveAngle = Math.atan2(dy, dx);
+            let spd = this.speed;
+
+            if (this.lockedTarget && !this.lockedTarget.dead) {
+                this.angle = angleBetween(this, this.lockedTarget);
+            } else {
+                this.angle = moveAngle;
+            }
+
+            let sprinting = keys['shift'] && this.stamina > 1;
+            if (sprinting) {
+                spd *= 1.6;
+                this.stamina -= 0.5;
+            }
+
+            let newX = this.x + Math.cos(moveAngle) * spd;
+            let newY = this.y + Math.sin(moveAngle) * spd;
+
+            let canMove = true;
+            for (let obs of world.obstacles) {
+                if (dist({ x: newX, y: newY }, obs) < obs.radius + 12) {
+                    canMove = false;
+                    let nx2 = this.x + Math.cos(moveAngle) * spd;
+                    if (dist({ x: nx2, y: this.y }, obs) >= obs.radius + 12) {
+                        this.x = nx2;
+                    }
+                    let ny2 = this.y + Math.sin(moveAngle) * spd;
+                    if (dist({ x: this.x, y: ny2 }, obs) >= obs.radius + 12) {
+                        this.y = ny2;
+                    }
+                    break;
+                }
+            }
+
+            if (canMove) {
+                this.x = newX;
+                this.y = newY;
+            }
+
+            this.state = 'moving';
+            this.walkCycle += 0.15;
+        } else {
+            this.state = 'idle';
+        }
+    }
+
+    startAttack(heavy) {
+        if (this.state === 'attack' || this.state === 'roll' || this.state === 'heal' || this.state === 'dead' || this.state === 'hurt') return;
+        
+        let staminaCost = heavy ? 30 : 18;
+        if (this.stamina < staminaCost) return;
+
+        this.stamina -= staminaCost;
+        this.state = 'attack';
+        this.stateTimer = 0;
+        this.isHeavyAttack = heavy;
+        this.attackDir = this.angle;
+
+        if (this.lockedTarget && !this.lockedTarget.dead) {
+            this.attackDir = angleBetween(this, this.lockedTarget);
+            this.angle = this.attackDir;
+        }
+    }
+
+    handleAttack(enemies) {
+        let hitFrame = this.isHeavyAttack ? 15 : 8;
+        let duration = this.isHeavyAttack ? 35 : 20;
+
+        if (this.stateTimer === hitFrame) {
+            let range = this.isHeavyAttack ? 65 : 50;
+            let dmg = this.attackDamage * (this.isHeavyAttack ? 1.8 : 1);
+            let arc = this.isHeavyAttack ? 1.2 : 0.8;
+
+            for (let enemy of enemies) {
+                if (enemy.dead) continue;
+                let d = dist(this, enemy);
+                if (d < range) {
+                    let angleToEnemy = angleBetween(this, enemy);
+                    let angleDiff = Math.abs(angleToEnemy - this.attackDir);
+                    if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+                    
+                    if (angleDiff < arc) {
+                        let actualDmg = enemy.takeDamage(Math.floor(dmg));
+                        if (actualDmg > 0) {
+                            game.showDamageNumber(enemy.x, enemy.y - enemy.size, actualDmg);
+                            if (enemy.dead) {
+                                this.souls += enemy.souls;
+                                game.showNotification(`+${enemy.souls} Almas`);
+                            }
+                        }
+                    }
+                }
+            }
+
+            spawnParticles(
+                this.x + Math.cos(this.attackDir) * 30,
+                this.y + Math.sin(this.attackDir) * 30,
+                6, '#aaa', 3, 10
+            );
+        }
+
+        if (this.stateTimer > duration) {
+            this.state = 'idle';
+        }
+    }
+
+    startRoll() {
+        if (this.state === 'roll' || this.state === 'dead' || this.state === 'attack' || this.state === 'hurt') return;
+        if (this.stamina < 15) return;
+
+        this.stamina -= 15;
+        this.state = 'roll';
+        this.stateTimer = 0;
+        this.rollAngle = this.angle;
+        this.invincible = true;
+    }
+
+    handleRoll(world) {
+        let rollSpeed = 6;
+        let rollDuration = 18;
+
+        if (this.stateTimer < rollDuration) {
+            let newX = this.x + Math.cos(this.rollAngle) * rollSpeed;
+            let newY = this.y + Math.sin(this.rollAngle) * rollSpeed;
+
+            let canMove = true;
+            for (let obs of world.obstacles) {
+                if (dist({ x: newX, y: newY }, obs) < obs.radius + 12) {
+                    canMove = false;
+                    break;
+                }
+            }
+            if (canMove) {
+                this.x = newX;
+                this.y = newY;
+            }
+
+            this.invincible = this.stateTimer < 12;
+        }
+
+        if (this.stateTimer >= rollDuration) {
+            this.state = 'idle';
+            this.invincible = false;
+        }
+    }
+
+    useEstus() {
+        if (this.state === 'attack' || this.state === 'roll' || this.state === 'dead' || this.state === 'heal') return;
+        if (this.estusFlask <= 0) return;
+
+        this.estusFlask--;
+        this.state = 'heal';
+        this.stateTimer = 0;
+    }
+
+    useManaFlask() {
+        if (this.state === 'attack' || this.state === 'roll' || this.state === 'dead' || this.state === 'heal') return;
+        if (this.manaFlask <= 0) return;
+
+        this.manaFlask--;
+        this.fp = Math.min(this.maxFp, this.fp + this.maxFp * 0.6);
+        spawnParticles(this.x, this.y, 15, '#2980b9', 3, 20);
+    }
+
+    handleHeal() {
+        if (this.stateTimer === 20) {
+            let healAmount = Math.floor(this.maxHp * 0.4);
+            this.hp = Math.min(this.maxHp, this.hp + healAmount);
+            spawnParticles(this.x, this.y, 20, '#27ae60', 3, 25);
+        }
+        if (this.stateTimer > 35) {
+            this.state = 'idle';
+        }
+    }
+
+    useSkill() {
+        if (this.state !== 'idle' && this.state !== 'moving') return;
+        if (this.fp < 15) return;
+
+        this.fp -= 15;
+        spawnParticles(this.x, this.y, 40, '#4488ff', 6, 30, 4);
+
+        for (let enemy of game.enemies) {
+            if (enemy.dead) continue;
+            if (dist(this, enemy) < 120) {
+                let dmg = enemy.takeDamage(Math.floor(this.attackDamage * 1.5));
+                if (dmg > 0) {
+                    game.showDamageNumber(enemy.x, enemy.y - enemy.size, dmg);
+                    if (enemy.dead) {
+                        this.souls += enemy.souls;
+                        game.showNotification(`+${enemy.souls} Almas`);
+                    }
+                }
+            }
+        }
+    }
+
+    takeDamage(amount) {
+        if (this.invincible || this.state === 'dead') return;
+
+        let actualDmg = Math.max(1, amount - this.totalDefense);
+        this.hp -= actualDmg;
+        this.state = 'hurt';
+        this.stateTimer = 0;
+        this.invincible = true;
+
+        spawnParticles(this.x, this.y, 10, '#ff0000', 3, 20);
+        game.showDamageNumber(this.x, this.y - 30, actualDmg, true);
+
+        if (this.hp <= 0) {
+            this.hp = 0;
+            this.die();
+        }
+    }
+
+    die() {
+        this.state = 'dead';
+        this.invincible = false;
+
+        if (this.souls > 0) {
+            this.droppedSouls = { x: this.x, y: this.y, amount: this.souls };
+        }
+        this.souls = 0;
+
+        spawnParticles(this.x, this.y, 50, '#ff4444', 5, 60, 5);
+        
+        document.getElementById('death-screen').classList.add('active');
+        document.getElementById('death-screen').style.display = 'flex';
+    }
+
+    toggleLockOn(enemies) {
+        if (this.lockedTarget) {
+            this.lockedTarget = null;
+            document.getElementById('lockon-indicator').style.display = 'none';
+            return;
+        }
+
+        let closest = null;
+        let closestDist = 500;
+        for (let enemy of enemies) {
+            if (enemy.dead) continue;
+            let d = dist(this, enemy);
+            if (d < closestDist) {
+                closestDist = d;
+                closest = enemy;
+            }
+        }
+        this.lockedTarget = closest;
+    }
+
+    draw(ctx, camX, camY) {
+        let sx = this.x - camX;
+        let sy = this.y - camY;
+
+        if (this.state === 'dead') {
+            ctx.globalAlpha = 0.5;
+        }
+
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(sx, sy + 14, 12, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        let bodyOffY = 0;
+        if (this.state === 'moving') {
+            bodyOffY = Math.sin(this.walkCycle) * 2;
+        }
+        if (this.state === 'roll') {
+            bodyOffY = Math.sin(this.stateTimer * 0.5) * 5;
+        }
+
+        ctx.save();
+        ctx.translate(sx, sy + bodyOffY);
+
+        if (this.state === 'roll') {
+            ctx.rotate(this.stateTimer * 0.4);
+        }
+
+        let bodyColor = this.state === 'hurt' ? '#ff6666' : '#2c3e50';
+        if (this.invincible && this.state === 'roll') bodyColor = '#3498db';
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 10, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = this.state === 'hurt' ? '#ff8888' : '#c0a080';
+        ctx.beginPath();
+        ctx.arc(0, -14, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#555';
+        ctx.beginPath();
+        ctx.arc(0, -16, 7, Math.PI, 0);
+        ctx.fill();
+
+        ctx.restore();
+
+        if (this.state !== 'roll') {
+            let weaponAngle = this.angle;
+            let weaponLen = 25;
+
+            if (this.state === 'attack') {
+                let progress = this.stateTimer / (this.isHeavyAttack ? 35 : 20);
+                let swing = Math.sin(progress * Math.PI) * 2.0;
+                weaponAngle = this.attackDir + swing - 1;
+                weaponLen = this.isHeavyAttack ? 35 : 28;
+            }
+
+            ctx.strokeStyle = '#aaa';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy + bodyOffY);
+            ctx.lineTo(
+                sx + Math.cos(weaponAngle) * weaponLen,
+                sy + bodyOffY + Math.sin(weaponAngle) * weaponLen
+            );
+            ctx.stroke();
+
+            ctx.fillStyle = '#ddd';
+            ctx.beginPath();
+            ctx.arc(
+                sx + Math.cos(weaponAngle) * weaponLen,
+                sy + bodyOffY + Math.sin(weaponAngle) * weaponLen,
+                2, 0, Math.PI * 2
+            );
+            ctx.fill();
+        }
+
+        if (this.state === 'heal') {
+            ctx.fillStyle = `rgba(39,174,96,${0.3 + Math.sin(this.stateTimer * 0.3) * 0.2})`;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 25 + this.stateTimer * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.globalAlpha = 1;
+    }
+}
+
+// =============================================
+// MAIN GAME
+// =============================================
+class Game {
+    constructor() {
+        this.started = false;
+        this.paused = false;
+        this.player = new Player();
+        this.world = new WorldGenerator();
+        this.enemies = [];
+        this.camera = { x: 0, y: 0 };
+        this.keys = {};
+        this.mouseX = 0;
+        this.mouseY = 0;
+        this.damageNumbers = [];
+        this.notificationTimer = 0;
+        this.currentRegion = null;
+        this.regionDisplayTimer = 0;
+        this.menuOpen = false;
+        this.autosaveTimer = 0;
+
+        this.spawnEnemies();
+        this.setupControls();
+        this.loadGame();
+        this.gameLoop();
+    }
+
+    spawnEnemies() {
+        this.enemies = [];
+
+        for (let region of REGIONS) {
+            if (region.enemyType === 'boss') continue;
+
+            let count = 8 + Math.floor(Math.random() * 6);
+            for (let i = 0; i < count; i++) {
+                let x = region.x + 100 + Math.random() * (region.w - 200);
+                let y = region.y + 100 + Math.random() * (region.h - 200);
+
+                let nearBonfire = false;
+                for (let bf of this.world.bonfires) {
+                    if (dist({ x, y }, bf) < 200) { nearBonfire = true; break; }
+                }
+                if (nearBonfire) continue;
+
+                this.enemies.push(new Enemy(region.enemyType, x, y));
+            }
+        }
+
+        this.enemies.push(new Enemy('hollow', 1500, 1500, 'treesentinel'));
+        this.enemies.push(new Enemy('knight', 3000, 3500, 'abysswatcher'));
+        this.enemies.push(new Enemy('demon', 5000, 5000, 'dragonlord'));
+    }
+
+    setupControls() {
+        window.addEventListener('keydown', (e) => {
+            this.keys[e.key.toLowerCase()] = true;
+
+            if (!this.started) return;
+
+            switch (e.key.toLowerCase()) {
+                case ' ':
+                    e.preventDefault();
+                    this.player.startRoll();
+                    break;
+                case 'q':
+                    this.player.useEstus();
+                    break;
+                case 'r':
+                    this.player.useManaFlask();
+                    break;
+                case 'f':
+                    this.player.useSkill();
+                    break;
+                case 'e':
+                    this.handleInteraction();
+                    break;
+                case 't':
+                    this.player.toggleLockOn(this.enemies);
+                    break;
+                case 'c':
+                    this.toggleCharacterMenu();
+                    break;
+                case 'tab':
+                    e.preventDefault();
+                    this.toggleInventory();
+                    break;
+                case 'escape':
+                    this.closeAllMenus();
+                    break;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            this.keys[e.key.toLowerCase()] = false;
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (!this.started || this.menuOpen) return;
+            if (e.button === 0) {
+                this.player.startAttack(false);
+            } else if (e.button === 2) {
+                this.player.startAttack(true);
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            this.mouseX = e.clientX;
+            this.mouseY = e.clientY;
+
+            if (this.started && !this.menuOpen && !this.player.lockedTarget && this.player.state !== 'attack') {
+                this.player.angle = Math.atan2(
+                    e.clientY - canvas.height / 2,
+                    e.clientX - canvas.width / 2
+                );
+            }
+        });
+
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
+    handleInteraction() {
+        for (let bf of this.world.bonfires) {
+            if (dist(this.player, bf) < 60) {
+                bf.lit = true;
+                this.player.lastBonfireX = bf.x;
+                this.player.lastBonfireY = bf.y;
+                this.openBonfire(bf);
+                this.saveGame();
+                return;
+            }
+        }
+
+        for (let chest of this.world.chests) {
+            if (chest.opened) continue;
+            if (dist(this.player, chest) < 50) {
+                chest.opened = true;
+                
+                if (chest.reward.type === 'souls') {
+                    this.player.souls += chest.reward.amount;
+                    this.showNotification(`+${chest.reward.amount} Almas`);
+                } else {
+                    this.player.inventory.push({ ...chest.reward });
+                    this.showNotification(`Obtido: ${chest.reward.name}`);
+                }
+                
+                spawnParticles(chest.x, chest.y, 30, '#f1c40f', 5, 40, 4);
+                this.saveGame();
+                return;
+            }
+        }
+
+        for (let item of this.world.items) {
+            if (item.collected) continue;
+            if (dist(this.player, item) < 50) {
+                item.collected = true;
+                this.player.inventory.push({ ...item });
+                this.showNotification(`Obtido: ${item.name}`);
+
+                if (item.type === 'ring') {
+                    this.player.stats[item.effect] += item.value;
+                    this.player.recalcStats();
+                }
+                this.saveGame();
+                return;
+            }
+        }
+
+        if (this.player.droppedSouls) {
+            if (dist(this.player, this.player.droppedSouls) < 50) {
+                this.player.souls += this.player.droppedSouls.amount;
+                this.showNotification(`Recuperado: ${this.player.droppedSouls.amount} Almas`);
+                this.player.droppedSouls = null;
+                this.saveGame();
+            }
+        }
+    }
+
+    openBonfire(bf) {
+        this.menuOpen = true;
+        document.getElementById('bonfire-menu').style.display = 'block';
+        this.currentBonfire = bf;
+    }
+
+    closeBonfire() {
+        this.menuOpen = false;
+        document.getElementById('bonfire-menu').style.display = 'none';
+    }
+
+    bonfireRest() {
+        this.player.hp = this.player.maxHp;
+        this.player.stamina = this.player.maxStamina;
+        this.player.fp = this.player.maxFp;
+        this.player.estusFlask = this.player.maxEstus;
+        this.player.manaFlask = this.player.maxMana;
+
+        this.spawnEnemies();
+
+        this.showNotification("Descansou na fogueira");
+        this.saveGame();
+        this.closeBonfire();
+    }
+
+    bonfireTravel() {
+        let litBonfires = this.world.bonfires.filter(b => b.lit);
+        if (litBonfires.length <= 1) {
+            this.showNotification("Nenhum outro destino disponível");
+            return;
+        }
+
+        let currentIdx = litBonfires.indexOf(this.currentBonfire);
+        let nextIdx = (currentIdx + 1) % litBonfires.length;
+        let target = litBonfires[nextIdx];
+
+        this.player.x = target.x;
+        this.player.y = target.y;
+        this.player.lastBonfireX = target.x;
+        this.player.lastBonfireY = target.y;
+        this.player.hp = this.player.maxHp;
+        this.player.stamina = this.player.maxStamina;
+        this.player.fp = this.player.maxFp;
+        this.player.estusFlask = this.player.maxEstus;
+        this.player.manaFlask = this.player.maxMana;
+
+        this.spawnEnemies();
+        this.showNotification(`Viajou para: ${target.name}`);
+        this.saveGame();
+        this.closeBonfire();
+    }
+
+    openLevelUp() {
+        document.getElementById('bonfire-menu').style.display = 'none';
+        document.getElementById('levelup-menu').style.display = 'block';
+        this.pendingStats = { ...this.player.stats };
+        this.pendingLevel = this.player.level;
+        this.updateLevelUpUI();
+    }
+
+    closeLevelUp() {
+        document.getElementById('levelup-menu').style.display = 'none';
+        document.getElementById('bonfire-menu').style.display = 'block';
+    }
+
+    addStat(stat) {
+        let cost = this.getLevelUpCost();
+        if (this.player.souls >= cost) {
+            this.player.souls -= cost;
+            this.player.stats[stat]++;
+            this.player.level++;
+            this.player.recalcStats();
+            this.player.hp = this.player.maxHp;
+            this.player.stamina = this.player.maxStamina;
+            this.player.fp = this.player.maxFp;
+            this.updateLevelUpUI();
+            this.saveGame();
+        }
+    }
+
+    getLevelUpCost() {
+        return Math.floor(100 * Math.pow(1.15, this.player.level - 1));
+    }
+
+    confirmLevelUp() {
+        this.closeLevelUp();
+    }
+
+    updateLevelUpUI() {
+        document.getElementById('stat-vigor').textContent = this.player.stats.vigor;
+        document.getElementById('stat-endurance').textContent = this.player.stats.endurance;
+        document.getElementById('stat-mind').textContent = this.player.stats.mind;
+        document.getElementById('stat-strength').textContent = this.player.stats.strength;
+        document.getElementById('stat-dexterity').textContent = this.player.stats.dexterity;
+        document.getElementById('cost-value').textContent = this.getLevelUpCost();
+    }
+
+    toggleCharacterMenu() {
+        if (this.menuOpen && document.getElementById('character-menu').style.display === 'block') {
+            this.closeCharacterMenu();
+        } else {
+            this.closeAllMenus();
+            this.menuOpen = true;
+            document.getElementById('character-menu').style.display = 'block';
+            this.updateCharacterMenu();
+        }
+    }
+
+    closeCharacterMenu() {
+        this.menuOpen = false;
+        document.getElementById('character-menu').style.display = 'none';
+    }
+
+    updateCharacterMenu() {
+        let weaponSlots = document.getElementById('weapon-slots');
+        weaponSlots.innerHTML = '';
+        let weapons = this.player.inventory.filter(i => i.type === 'weapon');
+        for (let weapon of weapons) {
+            let div = document.createElement('div');
+            div.className = 'equipment-slot';
+            div.innerHTML = `
+                <span>${weapon.name}</span>
+                <span class="stats">DMG: ${weapon.damage}</span>
+                ${weapon.equipped ? '<span class="equipped-label">[EQUIPADO]</span>' : ''}
+            `;
+            if (!weapon.equipped) {
+                div.onclick = () => {
+                    this.player.inventory.forEach(i => { if (i.type === 'weapon') i.equipped = false; });
+                    weapon.equipped = true;
+                    this.player.weapon = weapon;
+                    this.updateCharacterMenu();
+                    this.saveGame();
+                };
+            }
+            weaponSlots.appendChild(div);
+        }
+
+        let armorSlots = document.getElementById('armor-slots');
+        armorSlots.innerHTML = '';
+        let armors = this.player.inventory.filter(i => i.type === 'armor');
+        for (let armor of armors) {
+            let div = document.createElement('div');
+            div.className = 'equipment-slot';
+            div.innerHTML = `
+                <span>${armor.name}</span>
+                <span class="stats">DEF: ${armor.defense}</span>
+                ${this.player.armor && this.player.armor.name === armor.name ? '<span class="equipped-label">[EQUIPADO]</span>' : ''}
+            `;
+            div.onclick = () => {
+                if (this.player.armor && this.player.armor.name === armor.name) {
+                    this.player.armor = null;
+                } else {
+                    this.player.armor = armor;
+                }
+                this.updateCharacterMenu();
+                this.saveGame();
+            };
+            armorSlots.appendChild(div);
+        }
+
+        let secondarySlots = document.getElementById('secondary-slots');
+        secondarySlots.innerHTML = '';
+        let secondaries = this.player.inventory.filter(i => i.type === 'weapon' && i.special);
+        for (let sec of secondaries) {
+            let div = document.createElement('div');
+            div.className = 'equipment-slot';
+            div.innerHTML = `
+                <span>${sec.name}</span>
+                <span class="stats">DMG: ${sec.damage} ${sec.special === 'infiniteAmmo' ? '🔫∞' : '🏹∞'}</span>
+                ${this.player.secondary && this.player.secondary.name === sec.name ? '<span class="equipped-label">[EQUIPADO]</span>' : ''}
+            `;
+            div.onclick = () => {
+                if (this.player.secondary && this.player.secondary.name === sec.name) {
+                    this.player.secondary = null;
+                } else {
+                    this.player.secondary = sec;
+                }
+                this.updateCharacterMenu();
+                this.saveGame();
+            };
+            secondarySlots.appendChild(div);
+        }
+    }
+
+    toggleInventory() {
+        if (this.menuOpen && document.getElementById('inventory').style.display === 'block') {
+            this.closeInventory();
+        } else {
+            this.closeAllMenus();
+            this.menuOpen = true;
+            document.getElementById('inventory').style.display = 'block';
+            this.updateInventoryUI();
+        }
+    }
+
+    closeInventory() {
+        this.menuOpen = false;
+        document.getElementById('inventory').style.display = 'none';
+    }
+
+    sellItem(index) {
+        let item = this.player.inventory[index];
+        if (!item) return;
+        
+        // Can't sell equipped items
+        if (this.player.isItemEquipped(item)) {
+            this.showNotification("Desequipe o item primeiro!");
+            return;
+        }
+
+        let sellValue = getItemSellValue(item);
+        this.player.souls += sellValue;
+        this.player.inventory.splice(index, 1);
+        
+        this.showNotification(`Vendido: ${item.name} por ${sellValue} almas`);
+        this.updateInventoryUI();
+        this.saveGame();
+    }
+
+    updateInventoryUI() {
+        document.getElementById('inventory-souls').textContent = `⚔ Almas: ${this.player.souls}`;
+        
+        let list = document.getElementById('inv-list');
+        list.innerHTML = '';
+        
+        for (let i = 0; i < this.player.inventory.length; i++) {
+            let item = this.player.inventory[i];
+            let sellValue = getItemSellValue(item);
+            let isEquipped = this.player.isItemEquipped(item);
+            
+            let stats = '';
+            if (item.type === 'weapon') stats = `DMG: ${item.damage}`;
+            if (item.type === 'armor') stats = `DEF: ${item.defense}`;
+            if (item.type === 'shield') stats = `DEF: ${item.defense}`;
+            if (item.type === 'ring') stats = `+${item.value} ${item.effect}`;
+            
+            let div = document.createElement('div');
+            div.className = 'inv-item';
+            div.innerHTML = `
+                <div class="item-info">
+                    <div class="item-name">${item.name}${isEquipped ? '<span class="equipped"> [EQUIPADO]</span>' : ''}</div>
+                    <div class="item-stats">${stats}</div>
+                </div>
+                <span class="item-value">${sellValue} almas</span>
+                <button class="sell-btn" ${isEquipped ? 'disabled' : ''} data-index="${i}">Vender</button>
+            `;
+            
+            let sellBtn = div.querySelector('.sell-btn');
+            if (!isEquipped) {
+                sellBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.sellItem(parseInt(sellBtn.dataset.index));
+                };
+            }
+            
+            list.appendChild(div);
+        }
+        
+        if (this.player.inventory.length === 0) {
+            list.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">Inventário vazio</div>';
+        }
+    }
+
+    closeAllMenus() {
+        this.menuOpen = false;
+        document.getElementById('bonfire-menu').style.display = 'none';
+        document.getElementById('levelup-menu').style.display = 'none';
+        document.getElementById('inventory').style.display = 'none';
+        document.getElementById('character-menu').style.display = 'none';
+    }
+
+    respawn() {
+        document.getElementById('death-screen').classList.remove('active');
+        document.getElementById('death-screen').style.display = 'none';
+
+        this.player.x = this.player.lastBonfireX;
+        this.player.y = this.player.lastBonfireY;
+        this.player.hp = this.player.maxHp;
+        this.player.stamina = this.player.maxStamina;
+        this.player.fp = this.player.maxFp;
+        this.player.state = 'idle';
+        this.player.invincible = false;
+        this.player.estusFlask = this.player.maxEstus;
+        this.player.manaFlask = this.player.maxMana;
+        this.player.lockedTarget = null;
+
+        this.spawnEnemies();
+        this.saveGame();
+    }
+
+    showDamageNumber(x, y, amount, isPlayer) {
+        this.damageNumbers.push({
+            x, y,
+            amount,
+            timer: 60,
+            isPlayer
+        });
+    }
+
+    showNotification(text) {
+        let el = document.getElementById('notification');
+        el.textContent = text;
+        el.style.opacity = '1';
+        this.notificationTimer = 120;
+    }
+
+    saveGame() {
+        const saveData = {
+            player: {
+                x: this.player.x,
+                y: this.player.y,
+                level: this.player.level,
+                stats: this.player.stats,
+                souls: this.player.souls,
+                hp: this.player.hp,
+                fp: this.player.fp,
+                stamina: this.player.stamina,
+                lastBonfireX: this.player.lastBonfireX,
+                lastBonfireY: this.player.lastBonfireY,
+                inventory: this.player.inventory,
+                weapon: this.player.weapon,
+                armor: this.player.armor,
+                secondary: this.player.secondary,
+                droppedSouls: this.player.droppedSouls
+            },
+            world: {
+                bonfires: this.world.bonfires.map(b => ({ x: b.x, y: b.y, lit: b.lit, name: b.name })),
+                items: this.world.items.map(i => ({ ...i })),
+                chests: this.world.chests.map(c => ({ ...c }))
+            }
+        };
+        
+        localStorage.setItem('hollowRealmsAutoSave', JSON.stringify(saveData));
+        console.log('Game autosaved');
+    }
+
+    loadGame() {
+        const saveData = localStorage.getItem('hollowRealmsAutoSave');
+        if (!saveData) return;
+
+        try {
+            const data = JSON.parse(saveData);
+            
+            this.player.x = data.player.x;
+            this.player.y = data.player.y;
+            this.player.level = data.player.level;
+            this.player.stats = data.player.stats;
+            this.player.souls = data.player.souls;
+            this.player.hp = data.player.hp;
+            this.player.fp = data.player.fp;
+            this.player.stamina = data.player.stamina;
+            this.player.lastBonfireX = data.player.lastBonfireX;
+            this.player.lastBonfireY = data.player.lastBonfireY;
+            this.player.inventory = data.player.inventory;
+            this.player.weapon = data.player.weapon;
+            this.player.armor = data.player.armor;
+            this.player.secondary = data.player.secondary;
+            this.player.droppedSouls = data.player.droppedSouls;
+            this.player.recalcStats();
+
+            for (let i = 0; i < this.world.bonfires.length; i++) {
+                if (data.world.bonfires[i]) {
+                    this.world.bonfires[i].lit = data.world.bonfires[i].lit;
+                }
+            }
+
+            if (data.world.items) {
+                for (let i = 0; i < this.world.items.length; i++) {
+                    if (data.world.items[i]) {
+                        this.world.items[i].collected = data.world.items[i].collected;
+                    }
+                }
+            }
+
+            if (data.world.chests) {
+                for (let i = 0; i < this.world.chests.length; i++) {
+                    if (data.world.chests[i]) {
+                        this.world.chests[i].opened = data.world.chests[i].opened;
+                    }
+                }
+            }
+
+            console.log('Game loaded');
+        } catch (e) {
+            console.error('Failed to load save', e);
+        }
+    }
+
+    start() {
+        document.getElementById('start-screen').style.display = 'none';
+        this.started = true;
+    }
+
+    update() {
+        if (!this.started || this.menuOpen) return;
+        if (this.player.state === 'dead') return;
+
+        this.player.update(this.keys, this.enemies, this.world);
+
+        for (let enemy of this.enemies) {
+            enemy.update(this.player);
+        }
+
+        particles = particles.filter(p => p.life > 0);
+        for (let p of particles) p.update();
+
+        this.damageNumbers = this.damageNumbers.filter(d => d.timer > 0);
+        for (let d of this.damageNumbers) {
+            d.timer--;
+            d.y -= 0.5;
+        }
+
+        if (this.notificationTimer > 0) {
+            this.notificationTimer--;
+            if (this.notificationTimer <= 0) {
+                document.getElementById('notification').style.opacity = '0';
+            }
+        }
+
+        this.autosaveTimer++;
+        if (this.autosaveTimer >= 600) {
+            this.saveGame();
+            this.autosaveTimer = 0;
+        }
+
+        let targetCamX = this.player.x - canvas.width / 2;
+        let targetCamY = this.player.y - canvas.height / 2;
+        this.camera.x = lerp(this.camera.x, targetCamX, 0.1);
+        this.camera.y = lerp(this.camera.y, targetCamY, 0.1);
+        this.camera.x = clamp(this.camera.x, 0, WORLD_WIDTH - canvas.width);
+        this.camera.y = clamp(this.camera.y, 0, WORLD_HEIGHT - canvas.height);
+
+        let region = this.world.getRegion(this.player.x, this.player.y);
+        if (region !== this.currentRegion) {
+            this.currentRegion = region;
+            this.regionDisplayTimer = 180;
+            let el = document.getElementById('region-name');
+            el.textContent = region.name;
+            el.style.opacity = '1';
+        }
+        if (this.regionDisplayTimer > 0) {
+            this.regionDisplayTimer--;
+            if (this.regionDisplayTimer <= 0) {
+                document.getElementById('region-name').style.opacity = '0';
+            }
+        }
+
+        if (this.player.lockedTarget) {
+            if (this.player.lockedTarget.dead || dist(this.player, this.player.lockedTarget) > 600) {
+                this.player.lockedTarget = null;
+                document.getElementById('lockon-indicator').style.display = 'none';
+            }
+        }
+
+        let showPrompt = false;
+        let promptText = '';
+
+        for (let bf of this.world.bonfires) {
+            if (dist(this.player, bf) < 60) {
+                showPrompt = true;
+                promptText = bf.lit ? '[E] Fogueira' : '[E] Acender Fogueira';
+                break;
+            }
+        }
+
+        if (!showPrompt) {
+            for (let chest of this.world.chests) {
+                if (chest.opened) continue;
+                if (dist(this.player, chest) < 50) {
+                    showPrompt = true;
+                    promptText = `[E] Abrir Baú`;
+                    break;
+                }
+            }
+        }
+
+        if (!showPrompt) {
+            for (let item of this.world.items) {
+                if (item.collected) continue;
+                if (dist(this.player, item) < 50) {
+                    showPrompt = true;
+                    promptText = `[E] Pegar: ${item.name}`;
+                    break;
+                }
+            }
+        }
+
+        if (!showPrompt && this.player.droppedSouls) {
+            if (dist(this.player, this.player.droppedSouls) < 50) {
+                showPrompt = true;
+                promptText = `[E] Recuperar ${this.player.droppedSouls.amount} Almas`;
+            }
+        }
+
+        let promptEl = document.getElementById('interact-prompt');
+        promptEl.style.display = showPrompt ? 'block' : 'none';
+        promptEl.textContent = promptText;
+
+        let bossHud = document.getElementById('boss-hud');
+        let activeBoss = null;
+        for (let enemy of this.enemies) {
+            if (enemy.isBoss && !enemy.dead && dist(this.player, enemy) < enemy.aggroRange) {
+                activeBoss = enemy;
+                break;
+            }
+        }
+
+        if (activeBoss) {
+            bossHud.style.display = 'block';
+            document.getElementById('boss-name').textContent = activeBoss.name;
+            document.getElementById('boss-hp-fill').style.width = (activeBoss.hp / activeBoss.maxHp * 100) + '%';
+        } else {
+            bossHud.style.display = 'none';
+        }
+
+        this.updateHUD();
+    }
+
+    updateHUD() {
+        let p = this.player;
+
+        document.querySelector('#hp-bar .bar-fill').style.width = (p.hp / p.maxHp * 100) + '%';
+        document.getElementById('hp-text').textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
+
+        document.querySelector('#stamina-bar .bar-fill').style.width = (p.stamina / p.maxStamina * 100) + '%';
+        document.getElementById('stamina-text').textContent = `${Math.ceil(p.stamina)}/${p.maxStamina}`;
+
+        document.querySelector('#fp-bar .bar-fill').style.width = (p.fp / p.maxFp * 100) + '%';
+        document.getElementById('fp-text').textContent = `${Math.ceil(p.fp)}/${p.maxFp}`;
+
+        document.getElementById('souls-display').textContent = `⚔ Almas: ${p.souls}`;
+        document.getElementById('level-display').textContent = `Nível: ${p.level}`;
+        document.getElementById('estus-count').textContent = p.estusFlask;
+        document.getElementById('mana-count').textContent = p.manaFlask;
+        document.getElementById('weapon-display').textContent = `⚔ ${p.weapon.name} (ATK: ${p.attackDamage})`;
+
+        if (p.lockedTarget && !p.lockedTarget.dead) {
+            let indicator = document.getElementById('lockon-indicator');
+            let sx = p.lockedTarget.x - this.camera.x;
+            let sy = p.lockedTarget.y - this.camera.y - p.lockedTarget.size * 1.5;
+            indicator.style.display = 'block';
+            indicator.style.left = (sx - 20) + 'px';
+            indicator.style.top = (sy - 20) + 'px';
+        }
+    }
+
+    draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        let camX = this.camera.x;
+        let camY = this.camera.y;
+
+        let region = this.world.getRegion(this.player.x, this.player.y);
+
+        for (let r of REGIONS) {
+            let rx = r.x - camX;
+            let ry = r.y - camY;
+            if (rx + r.w < 0 || rx > canvas.width || ry + r.h < 0 || ry > canvas.height) continue;
+
+            ctx.fillStyle = r.color;
+            ctx.fillRect(rx, ry, r.w, r.h);
+
+            ctx.fillStyle = r.groundColor;
+            let startTX = Math.max(0, Math.floor((camX - r.x) / TILE_SIZE));
+            let startTY = Math.max(0, Math.floor((camY - r.y) / TILE_SIZE));
+            let endTX = Math.min(Math.floor(r.w / TILE_SIZE), Math.floor((camX + canvas.width - r.x) / TILE_SIZE) + 1);
+            let endTY = Math.min(Math.floor(r.h / TILE_SIZE), Math.floor((camY + canvas.height - r.y) / TILE_SIZE) + 1);
+
+            for (let tx = startTX; tx < endTX; tx++) {
+                for (let ty = startTY; ty < endTY; ty++) {
+                    if ((tx + ty) % 2 === 0) {
+                        ctx.fillRect(
+                            r.x + tx * TILE_SIZE - camX,
+                            r.y + ty * TILE_SIZE - camY,
+                            TILE_SIZE, TILE_SIZE
+                        );
+                    }
+                }
+            }
+
+            ctx.strokeStyle = 'rgba(100,100,100,0.3)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(rx, ry, r.w, r.h);
+        }
+
+        for (let dec of this.world.decorations) {
+            let sx = dec.x - camX;
+            let sy = dec.y - camY;
+            if (sx < -20 || sx > canvas.width + 20 || sy < -20 || sy > canvas.height + 20) continue;
+
+            switch (dec.type) {
+                case 'grass':
+                    ctx.fillStyle = '#3a5a30';
+                    ctx.fillRect(sx - 2, sy - 5, 2, 5);
+                    ctx.fillRect(sx + 1, sy - 7, 2, 7);
+                    ctx.fillRect(sx + 4, sy - 4, 2, 4);
+                    break;
+                case 'flower':
+                    ctx.fillStyle = '#aa4444';
+                    ctx.beginPath();
+                    ctx.arc(sx, sy - 3, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#3a5a30';
+                    ctx.fillRect(sx - 1, sy - 1, 2, 5);
+                    break;
+                case 'bone':
+                    ctx.fillStyle = '#d4c5a0';
+                    ctx.fillRect(sx - 5, sy - 1, 10, 2);
+                    ctx.fillRect(sx - 3, sy + 2, 6, 2);
+                    break;
+                case 'rubble':
+                    ctx.fillStyle = '#555';
+                    ctx.fillRect(sx - 4, sy - 3, 8, 6);
+                    ctx.fillStyle = '#444';
+                    ctx.fillRect(sx - 6, sy, 5, 4);
+                    break;
+            }
+        }
+
+        for (let obs of this.world.obstacles) {
+            let sx = obs.x - camX;
+            let sy = obs.y - camY;
+            if (sx < -50 || sx > canvas.width + 50 || sy < -80 || sy > canvas.height + 50) continue;
+
+            if (obs.type === 'tree') {
+                ctx.fillStyle = '#4a3520';
+                ctx.fillRect(sx - 5, sy - 10, 10, 20);
+                ctx.fillStyle = '#2d5a1e';
+                ctx.beginPath();
+                ctx.arc(sx, sy - 20 - obs.height * 0.3, obs.radius * 1.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#3a7a25';
+                ctx.beginPath();
+                ctx.arc(sx - 5, sy - 15 - obs.height * 0.3, obs.radius * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.fillStyle = '#555';
+                ctx.beginPath();
+                ctx.ellipse(sx, sy, obs.radius, obs.radius * 0.7, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#666';
+                ctx.beginPath();
+                ctx.ellipse(sx - 2, sy - 2, obs.radius * 0.7, obs.radius * 0.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        if (this.player.droppedSouls) {
+            let sx = this.player.droppedSouls.x - camX;
+            let sy = this.player.droppedSouls.y - camY;
+            let pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
+            ctx.fillStyle = `rgba(100,255,100,${pulse * 0.5})`;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 15 + pulse * 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = `rgba(200,255,200,${pulse})`;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        for (let chest of this.world.chests) {
+            if (chest.opened) continue;
+            let sx = chest.x - camX;
+            let sy = chest.y - camY;
+            if (sx < -30 || sx > canvas.width + 30 || sy < -30 || sy > canvas.height + 30) continue;
+
+            let pulse = Math.sin(Date.now() * 0.003 + chest.id) * 0.2 + 0.8;
+            
+            ctx.fillStyle = '#8b6914';
+            ctx.fillRect(sx - 12, sy - 8, 24, 16);
+            ctx.fillStyle = '#a0791a';
+            ctx.fillRect(sx - 10, sy - 6, 20, 12);
+            
+            ctx.fillStyle = '#d4af37';
+            ctx.fillRect(sx - 3, sy, 6, 4);
+            ctx.beginPath();
+            ctx.arc(sx, sy - 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = `rgba(212,175,55,${pulse * 0.5})`;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(sx - 13, sy - 9, 26, 18);
+        }
+
+        for (let item of this.world.items) {
+            if (item.collected) continue;
+            let sx = item.x - camX;
+            let sy = item.y - camY;
+            if (sx < -20 || sx > canvas.width + 20 || sy < -20 || sy > canvas.height + 20) continue;
+
+            let pulse = Math.sin(Date.now() * 0.003 + item.id) * 0.3 + 0.7;
+            ctx.fillStyle = `rgba(241,196,15,${pulse * 0.3})`;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath();
+            ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = `rgba(241,196,15,${pulse * 0.5})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 10 + pulse * 3, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        for (let bf of this.world.bonfires) {
+            let sx = bf.x - camX;
+            let sy = bf.y - camY;
+            if (sx < -50 || sx > canvas.width + 50 || sy < -50 || sy > canvas.height + 50) continue;
+
+            ctx.fillStyle = '#4a3520';
+            ctx.beginPath();
+            ctx.moveTo(sx - 10, sy + 5);
+            ctx.lineTo(sx + 10, sy + 5);
+            ctx.lineTo(sx + 5, sy - 5);
+            ctx.lineTo(sx - 5, sy - 5);
+            ctx.fill();
+
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy + 5);
+            ctx.lineTo(sx, sy - 20);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(sx - 6, sy - 12);
+            ctx.lineTo(sx + 6, sy - 12);
+            ctx.stroke();
+
+            if (bf.lit) {
+                let t = Date.now() * 0.01;
+                for (let i = 0; i < 5; i++) {
+                    let fx = sx + Math.sin(t + i) * 5;
+                    let fy = sy - 5 - i * 4 + Math.cos(t * 1.5 + i) * 2;
+                    let size = 8 - i * 1.2;
+                    let colors = ['#ff4500', '#ff6600', '#ff8800', '#ffaa00', '#ffcc00'];
+                    ctx.fillStyle = colors[i];
+                    ctx.globalAlpha = 0.8 - i * 0.1;
+                    ctx.beginPath();
+                    ctx.arc(fx, fy, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+
+                let gradient = ctx.createRadialGradient(sx, sy - 5, 5, sx, sy - 5, 80);
+                gradient.addColorStop(0, 'rgba(255,150,50,0.15)');
+                gradient.addColorStop(1, 'rgba(255,150,50,0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(sx, sy - 5, 80, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        let drawables = [];
+
+        drawables.push({ type: 'player', y: this.player.y, obj: this.player });
+
+        for (let enemy of this.enemies) {
+            if (enemy.deathTimer <= 60) {
+                drawables.push({ type: 'enemy', y: enemy.y, obj: enemy });
+            }
+        }
+
+        drawables.sort((a, b) => a.y - b.y);
+
+        for (let d of drawables) {
+            if (d.type === 'player') {
+                d.obj.draw(ctx, camX, camY);
+            } else {
+                d.obj.draw(ctx, camX, camY);
+            }
+        }
+
+        for (let p of particles) {
+            p.draw(ctx, camX, camY);
+        }
+
+        for (let d of this.damageNumbers) {
+            let sx = d.x - camX;
+            let sy = d.y - camY;
+            let alpha = d.timer / 60;
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = d.isPlayer ? '#ff4444' : '#ffaa00';
+            ctx.font = 'bold 18px Georgia';
+            ctx.textAlign = 'center';
+            ctx.fillText(d.amount, sx, sy);
+            ctx.globalAlpha = 1;
+        }
+
+        let vignetteGradient = ctx.createRadialGradient(
+            canvas.width / 2, canvas.height / 2, canvas.width * 0.3,
+            canvas.width / 2, canvas.height / 2, canvas.width * 0.7
+        );
+        vignetteGradient.addColorStop(0, 'rgba(0,0,0,0)');
+        vignetteGradient.addColorStop(1, 'rgba(0,0,0,0.4)');
+        ctx.fillStyle = vignetteGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        this.drawMinimap();
+    }
+
+    drawMinimap() {
+        let mw = 180, mh = 180;
+        minimapCtx.fillStyle = 'rgba(0,0,0,0.8)';
+        minimapCtx.fillRect(0, 0, mw, mh);
+
+        let scale = mw / WORLD_WIDTH;
+
+        for (let r of REGIONS) {
+            minimapCtx.fillStyle = r.color;
+            minimapCtx.fillRect(r.x * scale, r.y * scale, r.w * scale, r.h * scale);
+            minimapCtx.strokeStyle = '#333';
+            minimapCtx.lineWidth = 0.5;
+            minimapCtx.strokeRect(r.x * scale, r.y * scale, r.w * scale, r.h * scale);
+        }
+
+        for (let bf of this.world.bonfires) {
+            minimapCtx.fillStyle = bf.lit ? '#ff8800' : '#555';
+            minimapCtx.beginPath();
+            minimapCtx.arc(bf.x * scale, bf.y * scale, 3, 0, Math.PI * 2);
+            minimapCtx.fill();
+        }
+
+        for (let chest of this.world.chests) {
+            if (chest.opened) continue;
+            minimapCtx.fillStyle = '#d4af37';
+            minimapCtx.fillRect(chest.x * scale - 2, chest.y * scale - 2, 4, 4);
+        }
+
+        for (let enemy of this.enemies) {
+            if (enemy.dead) continue;
+            minimapCtx.fillStyle = enemy.isBoss ? '#ff0000' : '#ff4444';
+            let size = enemy.isBoss ? 3 : 1.5;
+            minimapCtx.beginPath();
+            minimapCtx.arc(enemy.x * scale, enemy.y * scale, size, 0, Math.PI * 2);
+            minimapCtx.fill();
+        }
+
+        if (this.player.droppedSouls) {
+            minimapCtx.fillStyle = '#00ff00';
+            minimapCtx.beginPath();
+            minimapCtx.arc(
+                this.player.droppedSouls.x * scale,
+                this.player.droppedSouls.y * scale,
+                3, 0, Math.PI * 2
+            );
+            minimapCtx.fill();
+        }
+
+        minimapCtx.fillStyle = '#ffffff';
+        minimapCtx.beginPath();
+        minimapCtx.arc(this.player.x * scale, this.player.y * scale, 3, 0, Math.PI * 2);
+        minimapCtx.fill();
+
+        minimapCtx.strokeStyle = '#ffffff';
+        minimapCtx.lineWidth = 1;
+        minimapCtx.beginPath();
+        minimapCtx.moveTo(this.player.x * scale, this.player.y * scale);
+        minimapCtx.lineTo(
+            this.player.x * scale + Math.cos(this.player.angle) * 8,
+            this.player.y * scale + Math.sin(this.player.angle) * 8
+        );
+        minimapCtx.stroke();
+    }
+
+    gameLoop() {
+        this.update();
+        this.draw();
+        requestAnimationFrame(() => this.gameLoop());
+    }
+}
+
+const game = new Game();
+</script>
+</body>
+</html>
